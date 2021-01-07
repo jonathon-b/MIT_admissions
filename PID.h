@@ -2,7 +2,7 @@
 Most relevant portion of this 
 code is "moveTO," basic PID function.
 
-"slewedDrive" function was a PID that 
+"slewedDrive" function is a PID that 
 limits aceleration as well (aka slew rate)
 
 */
@@ -75,16 +75,6 @@ public:
   {
     stopSignal = true;
   }
- 
-
-  void arcCalc(int radius, int degrees)
-  {
-    theta = degrees*pi/180;
-    innerArc = 360*(theta*(radius-ChassisRadius))/4*pi;
-    outerArc = 360*(theta*(radius+ChassisRadius))/4*pi;
-    porportion = innerArc/outerArc;
-
-  }
 
   void pidInit(float P, float I, float D)
   {
@@ -99,6 +89,8 @@ public:
   {
     //positional portion
     Error = Target - CurrentPosition;
+	  
+	  //limit I to 1000
     if(abs(Error) < 50)
     {
       if(abs(Integral) < 1000)
@@ -110,10 +102,14 @@ public:
         Integral = sgn(Integral)*1000;
       }
     }
+	  
+	  //calculate derivitive
     Derivative = (Error - LastError);
     LastError = Error;
 
     veloTarget = kP*Error + kI*Integral + kD*Derivative;
+	  
+	  //limit velocity
     if(abs(veloTarget) > veloMax)
     {
       veloTarget = sgn(veloTarget)*veloMax;
@@ -122,6 +118,7 @@ public:
     //velocity portion
     veloTargetError = veloTarget - Output;
 
+	  //limit change in velocity (aceleration)
     if(abs(veloTargetError) >= veloStep)
     {
       Output += sgn(veloTargetError)*veloStep;
@@ -130,6 +127,14 @@ public:
     {
       Output += sgn(veloTargetError)*veloTargetError;
     }
+	  
+	  /*
+	  ensure veloMax is recognized; if veloTarget 
+	  calculated by PID means robot acelerates too
+	  fast, limit aceleration using the output of
+	  slew rate control
+	  */
+	  
     if(abs(Output) > abs(veloTarget))
     {
       PowerOut = veloTarget;
